@@ -43,11 +43,12 @@ async function makeTempDir(label: string): Promise<string> {
 
 async function packPlugin(params: {
   packageName: string;
+  peerDependencies?: Record<string, string>;
   pluginId: string;
   version: string;
   rootDir: string;
 }): Promise<PackedVersion> {
-  const packageDir = path.join(params.rootDir, `package-${params.version}`);
+  const packageDir = path.join(params.rootDir, `package-${params.packageName}-${params.version}`);
   await fs.mkdir(path.join(packageDir, "dist"), { recursive: true });
   await fs.writeFile(
     path.join(packageDir, "package.json"),
@@ -57,6 +58,14 @@ async function packPlugin(params: {
         version: params.version,
         type: "module",
         openclaw: { extensions: ["./dist/index.js"] },
+        ...(params.peerDependencies
+          ? {
+              peerDependencies: params.peerDependencies,
+              peerDependenciesMeta: Object.fromEntries(
+                Object.keys(params.peerDependencies).map((name) => [name, { optional: true }]),
+              ),
+            }
+          : {}),
       },
       null,
       2,
@@ -96,6 +105,78 @@ async function packPlugin(params: {
     tarballName,
     version: params.version,
   };
+}
+
+async function startStaticRegistry(
+  packages: Array<{
+    latest: string;
+    packageName: string;
+    versions: PackedVersion[];
+  }>,
+): Promise<string> {
+  const packageEntries = packages.map((pkg) => ({
+    ...pkg,
+    encodedPackageName: encodeURIComponent(pkg.packageName).replace("%40", "@"),
+    versionsByVersion: new Map(pkg.versions.map((entry) => [entry.version, entry])),
+  }));
+  const server = http.createServer((request, response) => {
+    const url = new URL(request.url ?? "/", "http://127.0.0.1");
+    const baseUrl = `http://127.0.0.1:${(server.address() as { port: number }).port}`;
+    if (request.method !== "GET") {
+      response.writeHead(405, { "content-type": "text/plain" });
+      response.end("method not allowed");
+      return;
+    }
+
+    for (const pkg of packageEntries) {
+      if (url.pathname === `/${pkg.encodedPackageName}`) {
+        response.writeHead(200, { "content-type": "application/json" });
+        response.end(
+          `${JSON.stringify({
+            name: pkg.packageName,
+            "dist-tags": { latest: pkg.latest },
+            versions: Object.fromEntries(
+              [...pkg.versionsByVersion.entries()].map(([version, entry]) => [
+                version,
+                {
+                  name: pkg.packageName,
+                  version,
+                  dist: {
+                    integrity: entry.integrity,
+                    shasum: entry.shasum,
+                    tarball: `${baseUrl}/${pkg.encodedPackageName}/-/${entry.tarballName}`,
+                  },
+                },
+              ]),
+            ),
+          })}\n`,
+        );
+        return;
+      }
+
+      const tarballPrefix = `/${pkg.encodedPackageName}/-/`;
+      if (url.pathname.startsWith(tarballPrefix)) {
+        const entry = [...pkg.versionsByVersion.values()].find((candidate) =>
+          url.pathname.endsWith(`/${candidate.tarballName}`),
+        );
+        if (entry) {
+          response.writeHead(200, {
+            "content-length": String(entry.archive.length),
+            "content-type": "application/octet-stream",
+          });
+          response.end(entry.archive);
+          return;
+        }
+      }
+    }
+
+    response.writeHead(404, { "content-type": "text/plain" });
+    response.end(`not found: ${url.pathname}`);
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  servers.push(server);
+  return `http://127.0.0.1:${(server.address() as { port: number }).port}`;
 }
 
 async function startMutableRegistry(params: {
@@ -173,6 +254,68 @@ async function startMutableRegistry(params: {
 }
 
 describe("installPluginFromNpmSpec e2e", () => {
+  it("relinks managed npm sibling openclaw peers after later plugin installs", async () => {
+    const rootDir = await makeTempDir("npm-plugin-peer-e2e");
+    const npmRoot = path.join(rootDir, "managed-npm");
+    const peerPackageName = `peer-plugin-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const laterPackageName = `later-plugin-${crypto.randomUUID().replace(/-/g, "").slice(0, 12)}`;
+    const peerVersions = [
+      await packPlugin({
+        packageName: peerPackageName,
+        peerDependencies: { openclaw: ">=2026.0.0" },
+        pluginId: peerPackageName,
+        version: "1.0.0",
+        rootDir,
+      }),
+    ];
+    const laterVersions = [
+      await packPlugin({
+        packageName: laterPackageName,
+        pluginId: laterPackageName,
+        version: "1.0.0",
+        rootDir,
+      }),
+    ];
+    const registry = await startStaticRegistry([
+      { packageName: peerPackageName, latest: "1.0.0", versions: peerVersions },
+      { packageName: laterPackageName, latest: "1.0.0", versions: laterVersions },
+    ]);
+    process.env.NPM_CONFIG_REGISTRY = registry;
+    process.env.npm_config_registry = registry;
+
+    const first = await installPluginFromNpmSpec({
+      spec: `${peerPackageName}@1.0.0`,
+      npmDir: npmRoot,
+      logger: { info: () => {}, warn: () => {} },
+      timeoutMs: 120_000,
+    });
+    if (!first.ok) {
+      throw new Error(first.error);
+    }
+    const peerLink = path.join(first.targetDir, "node_modules", "openclaw");
+    await expect(fs.lstat(peerLink).then((stat) => stat.isSymbolicLink())).resolves.toBe(true);
+
+    const second = await installPluginFromNpmSpec({
+      spec: `${laterPackageName}@1.0.0`,
+      npmDir: npmRoot,
+      logger: { info: () => {}, warn: () => {} },
+      timeoutMs: 120_000,
+    });
+    if (!second.ok) {
+      throw new Error(second.error);
+    }
+
+    await expect(fs.lstat(peerLink).then((stat) => stat.isSymbolicLink())).resolves.toBe(true);
+    const manifest = JSON.parse(await fs.readFile(path.join(npmRoot, "package.json"), "utf8")) as {
+      dependencies?: Record<string, string>;
+    };
+    expect(manifest.dependencies?.openclaw).toBeUndefined();
+    const lock = JSON.parse(await fs.readFile(path.join(npmRoot, "package-lock.json"), "utf8")) as {
+      packages?: Record<string, unknown>;
+    };
+    expect(lock.packages?.["node_modules/openclaw"]).toBeUndefined();
+  });
+
   it("pins a mutable npm tag to the version resolved before install", async () => {
     const rootDir = await makeTempDir("npm-plugin-e2e");
     const npmRoot = path.join(rootDir, "managed-npm");
