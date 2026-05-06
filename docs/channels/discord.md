@@ -250,9 +250,9 @@ Once DMs are working, you can set up your Discord server as a full workspace whe
   <Step title="Allow responses without @mention">
     By default, your agent only responds in guild channels when @mentioned. For a private server, you probably want it to respond to every message.
 
-    In guild channels, normal assistant final replies stay private by default. Visible Discord output must be sent explicitly with the `message` tool, so the agent can lurk by default and only post when it decides a channel reply is useful.
+    In guild channels, normal assistant final replies are posted automatically after mention and allowlist gates pass. If you want visible Discord output to require explicit `message` tool sends, set `messages.groupChat.visibleReplies: "message_tool"`.
 
-    This means the selected model must reliably call tools. If Discord shows typing and the logs show token usage but no posted message, check the session log for assistant text with `didSendViaMessagingTool: false`. That means the model produced a private final answer instead of calling `message(action=send)`. Switch to a stronger tool-calling model, or use the config below to restore legacy automatic final replies.
+    Tool-only visible replies depend on a model that reliably calls tools. If Discord shows typing and the logs show token usage but no posted message, check the session log for assistant text with `didSendViaMessagingTool: false`. That means the model produced a private final answer instead of calling `message(action=send)`. Switch to a stronger tool-calling model, or leave visible replies automatic.
 
     <Tabs>
       <Tab title="Ask your agent">
@@ -275,7 +275,7 @@ Once DMs are working, you can set up your Discord server as a full workspace whe
 }
 ```
 
-        To restore legacy automatic final replies for group/channel rooms, set `messages.groupChat.visibleReplies: "automatic"`.
+        To require message-tool sends for visible group/channel replies, set `messages.groupChat.visibleReplies: "message_tool"`.
 
       </Tab>
     </Tabs>

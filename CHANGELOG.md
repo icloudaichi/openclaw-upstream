@@ -104,6 +104,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
+- Replies/Feishu: restore automatic group/channel visible replies when no visible-reply policy is configured, stop doctor from writing tool-only room replies by default, and hydrate Feishu native topic starter thread IDs before session routing so first turns and follow-ups stay in the same topic session. Fixes #78204 and #78262. Thanks @CGandGameEngineLearner and @joeyzenghuan.
 - Providers/xAI: stop sending OpenAI-style reasoning effort controls to native Grok Responses models, so `xai/grok-4.3` no longer fails live Docker/Gateway runs with `Invalid reasoning effort`.
 - Providers/xAI: clamp the bundled xAI thinking profile to `off` so live Gateway runs cannot send unsupported reasoning levels to native Grok Responses models.
 - Discord/gateway: measure heartbeat ACK timeouts from the actual heartbeat send, preventing late initial heartbeats from triggering false reconnect loops while the channel is still awaiting readiness. Fixes #77668. (#78087) Thanks @bryce-d-greybeard and @NikolaFC.

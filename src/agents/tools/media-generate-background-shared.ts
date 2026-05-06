@@ -273,7 +273,7 @@ function mediaGenerationCompletionRequiresMessageToolDelivery(params: {
   if (chatType === "group" || chatType === "channel") {
     const configuredMode =
       params.config?.messages?.groupChat?.visibleReplies ?? params.config?.messages?.visibleReplies;
-    return configuredMode !== "automatic";
+    return configuredMode === "message_tool";
   }
   return params.config?.messages?.visibleReplies === "message_tool";
 }

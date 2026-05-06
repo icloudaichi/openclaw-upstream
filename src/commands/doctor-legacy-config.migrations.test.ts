@@ -146,7 +146,7 @@ describe("normalizeCompatibilityConfigValues", () => {
     fs.rmSync(tempOauthDir, { recursive: true, force: true });
   });
 
-  it("sets the group visible reply default for configured channels", () => {
+  it("leaves missing group visible reply policy unset for configured channels", () => {
     const res = normalizeCompatibilityConfigValues({
       channels: {
         discord: {},
@@ -160,11 +160,8 @@ describe("normalizeCompatibilityConfigValues", () => {
 
     expect(res.config.messages?.groupChat).toEqual({
       mentionPatterns: ["@openclaw"],
-      visibleReplies: "message_tool",
     });
-    expect(res.changes).toContain(
-      'Set messages.groupChat.visibleReplies to "message_tool" so group/channel replies use the message tool by default.',
-    );
+    expect(res.changes.join("\n")).not.toContain("messages.groupChat.visibleReplies");
   });
 
   it("does not set group visible replies without channels or when already explicit", () => {

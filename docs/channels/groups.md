@@ -40,17 +40,18 @@ otherwise -> reply
 
 ## Visible replies
 
-For group/channel rooms, OpenClaw defaults to `messages.groupChat.visibleReplies: "message_tool"`.
-`openclaw doctor --fix` writes this default into configured-channel configs that omit it.
-That means the agent still processes the turn and can update memory/session state, but its normal final answer is not automatically posted back into the room. To speak visibly, the agent uses `message(action=send)`.
+For group/channel rooms, OpenClaw defaults to automatic visible replies unless
+`messages.groupChat.visibleReplies` or `messages.visibleReplies` is set. That
+means normal final answers are posted back into the room after the mention and
+allowlist gates pass.
 
-This default depends on a model/runtime that reliably calls tools. If logs show
+Set `messages.groupChat.visibleReplies: "message_tool"` to make group/channel
+room output opt-in through `message(action=send)`. This depends on a
+model/runtime that reliably calls tools. If logs show
 assistant text but `didSendViaMessagingTool: false`, the model answered
 privately instead of calling the message tool. That is not a
 Discord/Slack/Telegram send failure. Use a tool-call-reliable model for
-group/channel sessions, or set
-`messages.groupChat.visibleReplies: "automatic"` to restore legacy visible
-final replies.
+group/channel sessions, or leave visible replies automatic.
 
 If the message tool is unavailable under the active tool policy, OpenClaw falls
 back to automatic visible replies instead of silently suppressing the response.
@@ -62,13 +63,13 @@ This replaces the old pattern of forcing the model to answer `NO_REPLY` for most
 
 Typing indicators are still sent while the agent works in tool-only mode. The default group typing mode is upgraded from "message" to "instant" for these turns because there may never be normal assistant message text before the agent decides whether to call the message tool. Explicit typing-mode config still wins.
 
-To restore legacy automatic final replies for group/channel rooms:
+To require message-tool sends for visible group/channel replies:
 
 ```json5
 {
   messages: {
     groupChat: {
-      visibleReplies: "automatic",
+      visibleReplies: "message_tool",
     },
   },
 }

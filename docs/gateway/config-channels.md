@@ -775,14 +775,13 @@ See the full channel index: [Channels](/channels).
 
 Group messages default to **require mention** (metadata mention or safe regex patterns). Applies to WhatsApp, Telegram, Discord, Google Chat, and iMessage group chats.
 
-Visible replies are controlled separately. Group/channel rooms default to `messages.groupChat.visibleReplies: "message_tool"`: OpenClaw still processes the turn, but normal final replies stay private and visible room output requires `message(action=send)`. Set `"automatic"` only when you want the legacy behavior where normal replies are posted back to the room. To apply the same tool-only visible-reply behavior to direct chats too, set `messages.visibleReplies: "message_tool"`; the Codex harness also uses that tool-only behavior as its unset direct-chat default.
+Visible replies are controlled separately. Group/channel rooms default to automatic visible replies after mention and allowlist gates pass. Set `messages.groupChat.visibleReplies: "message_tool"` when you want normal final replies to stay private and visible room output to require `message(action=send)`. To apply the same tool-only visible-reply behavior to direct chats too, set `messages.visibleReplies: "message_tool"`; the Codex harness also uses that tool-only behavior as its unset direct-chat default.
 
 Tool-only visible replies require a model/runtime that reliably calls tools. If
 the session log shows assistant text with `didSendViaMessagingTool: false`, the
 model produced a private final answer instead of calling the message tool.
-Switch to a stronger tool-calling model for that channel, or set
-`messages.groupChat.visibleReplies: "automatic"` to restore legacy visible final
-replies.
+Switch to a stronger tool-calling model for that channel, or leave
+`messages.groupChat.visibleReplies` unset/automatic.
 
 If the message tool is unavailable under the active tool policy, OpenClaw falls back to automatic visible replies instead of silently suppressing the response. `openclaw doctor` warns about this mismatch.
 
@@ -800,7 +799,7 @@ The gateway hot-reloads `messages` config after the file is saved. Restart only 
     visibleReplies: "automatic", // global default for direct/source chats; Codex harness defaults unset direct chats to message_tool
     groupChat: {
       historyLimit: 50,
-      visibleReplies: "message_tool", // default; use "automatic" for legacy final replies
+      visibleReplies: "automatic", // set "message_tool" to require message-tool sends in rooms
     },
   },
   agents: {

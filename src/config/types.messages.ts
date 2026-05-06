@@ -96,7 +96,7 @@ export type MessagesConfig = {
    * channel conversations. Group/channel turns still default to
    * `groupChat.visibleReplies` when it is set.
    *
-   * Default: "automatic" for direct chats, "message_tool" for groups/channels.
+   * Default: "automatic".
    */
   visibleReplies?: "automatic" | "message_tool";
   /**

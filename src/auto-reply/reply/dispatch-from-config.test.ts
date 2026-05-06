@@ -519,6 +519,11 @@ const automaticGroupReplyConfig = {
     },
   },
 } as const satisfies OpenClawConfig;
+const globalToolOnlyReplyConfig = {
+  messages: {
+    visibleReplies: "message_tool",
+  },
+} as const satisfies OpenClawConfig;
 let dispatchReplyFromConfig: typeof import("./dispatch-from-config.js").dispatchReplyFromConfig;
 let resetInboundDedupe: typeof import("./inbound-dedupe.js").resetInboundDedupe;
 let tryDispatchAcpReplyHook: typeof import("../../plugin-sdk/acp-runtime.js").tryDispatchAcpReplyHook;
@@ -4646,11 +4651,11 @@ describe("sendPolicy deny — suppress delivery, not processing (#53328)", () =>
     expect(dispatcher.sendFinalReply).not.toHaveBeenCalled();
   });
 
-  it("defaults group/channel turns to message-tool-only source delivery", async () => {
+  it("defaults group/channel turns to automatic source delivery", async () => {
     setNoAbort();
     const dispatcher = createDispatcher();
     const replyResolver = vi.fn(async (_ctx: MsgContext, opts?: GetReplyOptions) => {
-      expect(opts?.sourceReplyDeliveryMode).toBe("message_tool_only");
+      expect(opts?.sourceReplyDeliveryMode).toBe("automatic");
       expect(opts?.suppressTyping).toBe(false);
       return { text: "final reply" } satisfies ReplyPayload;
     });
@@ -4666,11 +4671,13 @@ describe("sendPolicy deny — suppress delivery, not processing (#53328)", () =>
     });
 
     expect(replyResolver).toHaveBeenCalledTimes(1);
-    expect(result.queuedFinal).toBe(false);
-    expect(dispatcher.sendFinalReply).not.toHaveBeenCalled();
+    expect(result.queuedFinal).toBe(true);
+    expect(dispatcher.sendFinalReply).toHaveBeenCalledWith(
+      expect.objectContaining({ text: "final reply" }),
+    );
   });
 
-  it("does not auto-route same-provider group/channel final replies in message-tool-only mode", async () => {
+  it("does not auto-route same-provider group/channel final replies when message-tool-only is configured", async () => {
     setNoAbort();
     mocks.routeReply.mockClear();
     const dispatcher = createDispatcher();
@@ -4688,7 +4695,7 @@ describe("sendPolicy deny — suppress delivery, not processing (#53328)", () =>
         OriginatingTo: "channel:C1",
         SessionKey: "test:discord:channel:C1",
       }),
-      cfg: emptyConfig,
+      cfg: globalToolOnlyReplyConfig,
       dispatcher,
       replyResolver,
     });

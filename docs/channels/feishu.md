@@ -72,6 +72,8 @@ Default: `allowlist`
 - Per-group override: `channels.feishu.groups.<chat_id>.requireMention`
 - Broadcast-only `@all` and `@_all` are not treated as bot mentions. A message that mentions both `@all` and the bot directly still counts as a bot mention.
 
+When no global or group visible-reply policy is configured, Feishu/Lark group replies are posted automatically. Set `messages.groupChat.visibleReplies: "message_tool"` to require the agent to use the message tool for visible group replies.
+
 ---
 
 ## Group configuration examples
@@ -479,9 +481,10 @@ conversion fails, OpenClaw falls back to a file attachment and logs the reason.
 
 For `groupSessionScope: "group_topic"` and `"group_topic_sender"`, native
 Feishu/Lark topic groups use the event `thread_id` (`omt_*`) as the canonical
-topic session key. Normal group replies that OpenClaw turns into threads keep
-using the reply root message ID (`om_*`) so the first turn and follow-up turn
-stay in the same session.
+topic session key. If a native topic starter event omits `thread_id`, OpenClaw
+hydrates it from Feishu before routing the turn. Normal group replies that
+OpenClaw turns into threads keep using the reply root message ID (`om_*`) so the
+first turn and follow-up turn stay in the same session.
 
 ---
 

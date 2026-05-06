@@ -396,7 +396,7 @@ describe("doctor preview warnings", () => {
     expect(warnings.join("\n")).not.toContain("stale plugin reference");
   });
 
-  it("warns softly when default group visible replies need an unavailable message tool", () => {
+  it("does not warn when automatic default group visible replies have no message tool", () => {
     const warnings = collectVisibleReplyToolPolicyWarnings({
       channels: {
         slack: {},
@@ -406,11 +406,7 @@ describe("doctor preview warnings", () => {
       },
     });
 
-    expect(warnings).toEqual([
-      expect.stringContaining('messages.groupChat.visibleReplies defaults to "message_tool"'),
-    ]);
-    expect(warnings[0]).toContain("message tool is unavailable");
-    expect(warnings[0]).toContain("falls back to automatic group/channel replies");
+    expect(warnings).toEqual([]);
   });
 
   it("warns strongly when explicit group visible replies require an unavailable message tool", () => {

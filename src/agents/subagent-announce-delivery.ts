@@ -748,7 +748,7 @@ function completionRequiresMessageToolDelivery(params: {
   if (chatType === "group" || chatType === "channel") {
     const configuredMode =
       params.cfg.messages?.groupChat?.visibleReplies ?? params.cfg.messages?.visibleReplies;
-    return configuredMode !== "automatic";
+    return configuredMode === "message_tool";
   }
   return params.cfg.messages?.visibleReplies === "message_tool";
 }

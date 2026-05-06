@@ -44,7 +44,7 @@ Save to `~/.openclaw/openclaw.json` and you can DM the bot from that number.
   messages: {
     visibleReplies: "automatic",
     groupChat: {
-      visibleReplies: "message_tool", // default; use "automatic" for legacy room replies
+      visibleReplies: "automatic", // set "message_tool" to require message-tool sends in rooms
     },
   },
 }

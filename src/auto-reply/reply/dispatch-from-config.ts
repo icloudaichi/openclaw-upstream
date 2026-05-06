@@ -713,7 +713,7 @@ export async function dispatchReplyFromConfig(
     (params.replyOptions?.sourceReplyDeliveryMode === undefined &&
       ctx.CommandSource !== "native" &&
       (chatType === "group" || chatType === "channel"
-        ? effectiveVisibleReplies !== "automatic"
+        ? effectiveVisibleReplies === "message_tool"
         : effectiveVisibleReplies === "message_tool"));
   const runtimeProfileAlsoAllow = prefersMessageToolDelivery ? ["message"] : [];
   const profilePolicy = mergeAlsoAllowPolicy(resolveToolProfilePolicy(profile), [
